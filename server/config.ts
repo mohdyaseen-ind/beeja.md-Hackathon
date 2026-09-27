@@ -270,6 +270,7 @@ export function makeConfigToml(settings: ProviderSettings, webSearchEnabled = tr
     `•  TOOL-OUTPUT VIRTUALIZATION: Never flood context with large outputs. Pipe large test/grep/cat outputs to temporary files and read only the first 50 lines.`,
     `•  RETRIEVAL GOVERNOR: Always search the local codebase with rg before escalating to web search.`,
     `•  DOOM-LOOP GUARD: If you execute the same command or encounter the same failure twice, STOP. Do not retry blindly. Switch approaches or report failure.`,
+    `•  HARNESS PROTECTION: NEVER modify the files of the Beeja Harness you are currently running in. If asked to solve an external GitHub issue, git clone it into a temporary directory (e.g. /tmp/eval-workspace) before modifying it.`,
     ``,
     `Editing:`,
     `•  ASCII unless task/file requires otherwise.`,

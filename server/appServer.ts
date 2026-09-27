@@ -108,6 +108,37 @@ export class AppServer extends EventEmitter {
   async createThread(projectPath?: string, model?: string): Promise<any> {
     if (!this.settings) throw new Error("Configure a provider before creating a thread.");
     const search = await getWebSearchSettings();
+    const beejaConfigured = search.enabled && (search.tavilyApiKey || await hasOllamaCloudSearch());
+    
+    // Dynamically build the beeja namespace tools based on what's enabled
+    const dynamicToolsConfig = {
+      type: "namespace",
+      name: "beeja",
+      description: "Tools provided by the Beeja app.",
+      tools: [
+        {
+          type: "function",
+          name: "github_get_issue",
+          description: "Fetch issue(s) from a public GitHub repository. Omit issue_number to list all open issues.",
+          inputSchema: { 
+            type: "object", 
+            properties: { 
+              repo: { type: "string", description: "The repository in owner/repo format (e.g. facebook/react)" },
+              issue_number: { type: "number", description: "Optional specific issue number to fetch" }
+            }, 
+            required: ["repo"], 
+            additionalProperties: false 
+          }
+        },
+        ...(beejaConfigured ? [{
+          type: "function",
+          name: "web_search",
+          description: "Search the web using configured Ollama Cloud search and/or a Tavily-compatible endpoint. Use when current facts, sources, or recent information are useful.",
+          inputSchema: { type: "object", properties: { query: { type: "string", description: "Search query" } }, required: ["query"], additionalProperties: false },
+        }] : [])
+      ],
+    };
+
     const result = await this.request("thread/start", {
       cwd: projectPath || await getProjectPath(),
       model: model || this.settings.model,
@@ -115,12 +146,12 @@ export class AppServer extends EventEmitter {
       historyMode: "legacy",
       approvalPolicy: "on-request",
       sandbox: "workspace-write",
-      ...(search.enabled && (search.tavilyApiKey || await hasOllamaCloudSearch()) ? { dynamicTools: [webSearchTool] } : {}),
+      dynamicTools: [dynamicToolsConfig],
     });
     const threadId = result?.thread?.id || result?.threadId;
     if (typeof threadId === "string") this.searchReadyThreads.set(threadId, {
       native: search.enabled,
-      beeja: Boolean(search.enabled && (search.tavilyApiKey || await hasOllamaCloudSearch())),
+      beeja: Boolean(beejaConfigured),
     });
     return result;
   }
@@ -177,7 +208,34 @@ export class AppServer extends EventEmitter {
   }
 
   async callDynamicTool(params: any): Promise<any> {
-    if (params?.tool !== "web_search" || params?.namespace !== "beeja") throw new Error("Unknown dynamic tool.");
+    if (params?.namespace !== "beeja") throw new Error("Unknown dynamic tool namespace.");
+    
+    if (params.tool === "github_get_issue") {
+      const repo = params.arguments?.repo;
+      const issue_number = params.arguments?.issue_number;
+      if (typeof repo !== "string" || !repo.includes("/")) throw new Error("Invalid repo format. Use owner/repo.");
+      
+      const url = issue_number 
+        ? `https://api.github.com/repos/${repo}/issues/${issue_number}`
+        : `https://api.github.com/repos/${repo}/issues`;
+        
+      const response = await fetch(url, {
+        headers: { "Accept": "application/vnd.github.v3+json", "User-Agent": "beeja-controller" },
+        signal: AbortSignal.timeout(10_000)
+      });
+      if (!response.ok) throw new Error(`GitHub API failed: ${response.status} ${response.statusText}`);
+      const data = await response.json();
+      
+      const formatIssue = (issue: any) => ({
+        number: issue.number, title: issue.title, state: issue.state,
+        body: issue.body, html_url: issue.html_url, created_at: issue.created_at
+      });
+      
+      const cleanData = Array.isArray(data) ? data.map(formatIssue) : formatIssue(data);
+      return { success: true, contentItems: [{ type: "inputText", text: JSON.stringify(cleanData) }] };
+    }
+
+    if (params.tool !== "web_search") throw new Error("Unknown dynamic tool.");
     const settings = await getWebSearchSettings();
     if (!settings.enabled) throw new Error("Enable web search in settings first.");
     const query = typeof params.arguments?.query === "string" ? params.arguments.query.trim() : "";
@@ -308,12 +366,28 @@ const webSearchTool = {
   type: "namespace",
   name: "beeja",
   description: "Tools provided by the Beeja app.",
-  tools: [{
-    type: "function",
-    name: "web_search",
-    description: "Search the web using configured Ollama Cloud search and/or a Tavily-compatible endpoint. Use when current facts, sources, or recent information are useful.",
-    inputSchema: { type: "object", properties: { query: { type: "string", description: "Search query" } }, required: ["query"], additionalProperties: false },
-  }],
+  tools: [
+    {
+      type: "function",
+      name: "web_search",
+      description: "Search the web using configured Ollama Cloud search and/or a Tavily-compatible endpoint. Use when current facts, sources, or recent information are useful.",
+      inputSchema: { type: "object", properties: { query: { type: "string", description: "Search query" } }, required: ["query"], additionalProperties: false },
+    },
+    {
+      type: "function",
+      name: "github_get_issue",
+      description: "Fetch issue(s) from a public GitHub repository. Omit issue_number to list all open issues.",
+      inputSchema: { 
+        type: "object", 
+        properties: { 
+          repo: { type: "string", description: "The repository in owner/repo format (e.g. facebook/react)" },
+          issue_number: { type: "number", description: "Optional specific issue number to fetch" }
+        }, 
+        required: ["repo"], 
+        additionalProperties: false 
+      }
+    }
+  ],
 };
 
 async function hasOllamaCloudSearch(): Promise<boolean> {
