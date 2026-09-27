@@ -53,9 +53,24 @@ export async function ensureDataDir() {
 
 export async function getProvider(): Promise<ProviderSettings | null> {
   try {
-    return JSON.parse(await readFile(providerFile, "utf8")) as ProviderSettings;
+    const config = JSON.parse(await readFile(providerFile, "utf8")) as ProviderSettings;
+    if (process.env.AI_API_KEY) {
+      config.apiKey = process.env.AI_API_KEY;
+    }
+    return config;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      if (process.env.AI_API_KEY) {
+        return {
+          provider: "openai",
+          baseUrl: "https://api.openai.com/v1",
+          model: process.env.AI_MODEL || "gpt-4o",
+          apiKey: process.env.AI_API_KEY,
+          wireApi: "responses"
+        };
+      }
+      return null;
+    }
     throw error;
   }
 }
