@@ -2,18 +2,34 @@
 
 A local web controller for the open source Codex CLI harness. The browser sends prompts to a Node server, which owns a Codex `app-server` process. Codex performs the agent and tool loop.
 
-## Run locally
+## Run locally (Hackathon 2026 Evaluation)
 
-Requirements: Node.js 22 or newer, npm, and a `codex` CLI on `PATH` (tested with 0.156.1). For local models, run Ollama with a model that supports tool calls and the OpenAI Responses API.
+Requirements: Node.js 22 or newer and a `codex` CLI (tested with 0.156.1).
 
+This repository strictly implements the **Standardised Makefile-Based Evaluation Setup**.
+
+**1. Setup Environment:**
 ```sh
-npm install
-npm --prefix web install
-npm run dev
+make setup
 ```
+This automatically installs backend dependencies, frontend dependencies, and builds the Vite production app.
 
-Open `http://127.0.0.1:5173`. The Vite web server proxies `/api` and `/ws` to the local Node server on port 3000. `npm run build` checks both TypeScript projects and creates the production frontend; `npm start` serves that build on `http://127.0.0.1:3000`.
+**2. Configure API Key:**
+```sh
+export AI_API_KEY="<PROVIDED_API_KEY>"
+```
+The application dynamically reads this credential at runtime. **No API keys are hardcoded in the source or `.env`.**
 
+**3. Launch the AI Harness:**
+```sh
+make run
+```
+This initializes the Codex app-server and starts the web UI on `http://127.0.0.1:3000`.
+
+*(Optional) Run typechecking tests:*
+```sh
+make test
+```
 On first launch, open Settings and enter a provider name, base URL, model ID, and token if the provider needs one. The form defaults to Ollama Cloud's `gemma4:31b` at `https://ollama.com/v1`, so inference runs remotely instead of loading model weights on your Mac. Create an Ollama API key for this endpoint. For local Ollama, use `http://127.0.0.1:11434/v1` instead. The base URL should be the API root, without `/responses`. Codex 0.156.1 requires an OpenAI Responses API compatible endpoint. DeepSeek's is `https://api.deepseek.com` with `deepseek-flash` or `deepseek-v4-pro`. Then select an absolute local project directory, create a chat, and send a prompt.
 
 The server creates a separate Codex home in `~/.beeja-controller/codex-home`. It does not use or copy the desktop app's ChatGPT sign-in. Provider settings, including a token when supplied, are stored server-side in `~/.beeja-controller/provider.json` with owner-only permissions. The browser receives only a token-configured flag. Saved project directories are stored separately in `projects.json`; the selected directory is persisted in `project.json`. Set `BEEJA_DATA_DIR` to move that data, or `CODEX_BIN` to use a specific CLI binary. The app binds to loopback by default.
