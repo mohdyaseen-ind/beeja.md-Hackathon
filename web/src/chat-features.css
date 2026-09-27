@@ -1,0 +1,40 @@
+.chat-workspace{display:flex;flex:1;min-height:0;width:100%;overflow:hidden}
+.chat-workspace>.chat-layout{flex:1;min-width:0}
+.chat-workspace>.workspace-panel{flex:0 0 380px;width:380px;max-width:42vw}
+.workspace-toggle{height:28px;width:30px;display:grid;place-items:center;border:1px solid transparent;border-radius:6px;background:transparent;color:#888}
+.workspace-toggle:hover,.workspace-toggle.active{background:#202020;border-color:#303030;color:#eee}
+.chat-layout.composer-centered{position:relative}
+.chat-layout.composer-centered>.chat-scroll{flex:0 0 40%;min-height:0;justify-content:flex-end}
+.chat-layout.composer-centered .welcome{margin:auto auto 4px;padding:22px 20px 0}
+.chat-layout.composer-centered .composer-wrap{position:absolute;left:50%;top:58%;transform:translate(-50%,-50%);z-index:3;width:min(100%,780px);margin:0}
+.composer{position:relative;overflow:visible}
+.composer-toolbar{gap:6px}
+.composer-left{min-width:0;flex-wrap:wrap;gap:4px}
+.control-tag{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 7px;border:0;border-radius:5px;background:transparent;color:#8b8b8b;font-size:10px;white-space:nowrap}
+.control-tag:hover{background:#242424;color:#ddd}
+.control-tag select{max-width:160px;border:0;outline:0;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.control-tag select option{background:#171717;color:#ddd}
+.effort-control span{color:#777}
+.effort-control select{max-width:82px}
+.search-control{cursor:pointer}
+.search-control:disabled{opacity:.5;cursor:default}
+.search-control.enabled{background:#202822;color:#acd0b5}
+.skill-picker{position:absolute;left:8px;right:8px;bottom:calc(100% + 7px);z-index:8;max-height:240px;overflow:auto;padding:5px;border:1px solid #333;border-radius:8px;background:#181818;box-shadow:0 12px 32px #000a}
+.skill-picker button{width:100%;display:flex;align-items:flex-start;gap:9px;padding:8px;border:0;border-radius:5px;background:transparent;color:#bbb;text-align:left}
+.skill-picker button:hover{background:#252525;color:#eee}
+.skill-picker button.selected,.skill-picker button[aria-selected="true"]{background:#292929;color:#f2f2f2}
+.skill-picker button>svg{flex:0 0 auto;margin-top:2px;color:#aaa}
+.skill-picker button span{min-width:0;display:flex;flex-direction:column;gap:3px}
+.skill-picker button strong{font-size:11px;font-weight:550}
+.skill-picker button small{overflow:hidden;color:#777;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+.skill-picker-empty{padding:12px;color:#777;font-size:11px;text-align:center}
+.search-toggle-setting{display:flex!important;flex-direction:row!important;align-items:center;gap:9px!important;margin:0 0 16px;color:#bbb;font-size:11px!important}
+.search-toggle-setting input{width:15px!important;height:15px!important;margin:0;accent-color:#ddd}
+.search-settings-grid{margin-top:8px}
+@media(max-width:760px){.chat-workspace.panel-open{flex-direction:column}.chat-workspace>.workspace-panel{flex:0 0 42%;width:100%;max-width:none;min-height:220px}.chat-workspace.panel-open>.chat-layout{flex:1 1 58%;min-height:240px}.chat-layout.composer-centered>.chat-scroll{flex-basis:34%}.chat-layout.composer-centered>.composer-wrap{top:59%;padding-left:12px;padding-right:12px}.composer-toolbar{height:auto;min-height:39px}.composer-left{max-width:calc(100% - 36px)}.control-tag{padding-inline:4px}.control-tag select{max-width:104px}.effort-control select{max-width:72px}}
+
+/* Per-turn Codex summaries, runtime activity and token accounting. */
+.turn-insights{display:grid;gap:7px;margin-top:12px;max-width:680px;color:#a6a6a6;font-size:11px;line-height:1.55}.turn-insights details{border:1px solid #292929;border-radius:7px;background:#121212;overflow:hidden}.turn-insights summary{min-height:33px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;list-style:none;color:#aaa;font-weight:550}.turn-insights summary::-webkit-details-marker{display:none}.turn-insights summary::after{content:'+';font:14px var(--mono);color:#666}.turn-insights details[open]>summary::after{content:'−'}.turn-insights summary span{margin-left:auto;color:#757575;font:10px var(--mono);font-weight:400}.turn-reasoning>div{padding:1px 11px 11px;color:#c0c0c0;white-space:pre-wrap;overflow-wrap:anywhere}.turn-activity ul{display:grid;gap:1px;list-style:none;margin:0;padding:0 10px 9px}.turn-activity li{display:grid;grid-template-columns:8px minmax(0,1fr) auto;align-items:center;gap:8px;padding:4px 0;color:#aaa}.activity-mark{width:6px;height:6px;border-radius:50%;background:#777}.turn-activity li.running .activity-mark{background:#d1b783;box-shadow:0 0 6px #d1b78355}.turn-activity li small{color:#696969;font-size:9px;text-transform:capitalize}.token-grid{display:grid;grid-template-columns:minmax(120px,1fr) auto;gap:5px 14px;padding:1px 11px 10px}.token-grid span{color:#858585}.token-grid strong{color:#d5d5d5;text-align:right;font:10px var(--mono);font-weight:400}.usage-source{margin:0;padding:0 11px 9px;color:#696969;font-size:9px}.token-calls{padding:0 11px 8px;border-top:1px solid #242424}.token-calls>span{display:block;padding:8px 0 2px;color:#7a7a7a;font-size:9px;text-transform:uppercase;letter-spacing:.06em}.token-calls p{display:flex;justify-content:space-between;gap:12px;margin:5px 0;color:#888;font-size:9px}.token-calls code{overflow:hidden;text-overflow:ellipsis;color:#888;font:9px var(--mono)}.token-last-call{border-top:1px solid #242424;padding:7px 11px;color:#858585;font-size:9px}
+
+/* Keep the recent chats and project lists together in the scrollable sidebar. */
+.sidebar-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#343434 transparent}.sidebar-scroll>.thread-list{max-height:32vh;min-height:32px;overflow-y:auto;flex:0 1 auto}.projects-label{margin-top:12px;border-top:1px solid #202020;padding-top:13px;height:38px}.sidebar-projects{padding:0 2px 12px}.project-row,.project-add{width:100%;min-height:31px;border:0;border-radius:5px;background:transparent;color:#8d8d8d;display:flex;align-items:center;gap:8px;padding:0 8px;text-align:left;font-size:11px}.project-row span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.project-row:hover,.project-row.selected{background:#191919;color:#ddd}.project-row svg,.project-add svg{flex:0 0 auto;color:#777}.project-add{margin-top:2px;color:#727272}.project-add:hover:not(:disabled){background:#191919;color:#c9c9c9}.project-add:disabled{opacity:.5;cursor:default}.project-empty{padding:6px 8px;color:#666;font-size:10px}.project-add-form{margin:5px 2px 4px;padding:8px;border:1px solid #2a2a2a;border-radius:6px;background:#101010}.project-add-form input{width:100%;height:30px;border:1px solid #333;border-radius:4px;background:#0b0b0b;padding:0 7px;color:#ddd;font-size:10px}.project-add-form>div{display:flex;justify-content:flex-end;gap:5px;margin-top:7px}.project-add-form button{height:25px;border:1px solid #353535;border-radius:4px;background:#202020;color:#aaa;padding:0 7px;font-size:9px}.project-add-form button[type=submit]{background:#eee;border-color:#eee;color:#111}.project-add-form button:disabled{opacity:.5}

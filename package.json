@@ -1,0 +1,26 @@
+{
+  "name": "beeja-controller",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,green \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:server": "BEEJA_DEV_SERVER=1 tsx watch server/index.ts",
+    "dev:web": "npm --prefix web run dev",
+    "build": "tsc --noEmit && npm --prefix web run build",
+    "start": "tsx server/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^22.15.30",
+    "@types/ws": "^8.18.1",
+    "concurrently": "^9.2.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}

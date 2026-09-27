@@ -1,0 +1,24 @@
+.usage-indicator{position:relative;display:flex;align-items:center}
+.usage-indicator-button{position:relative;width:29px;height:29px;display:grid;place-items:center;border:1px solid #303030;border-radius:50%;background:#141414;color:#a0a0a0;padding:0}
+.usage-indicator-button:hover,.usage-indicator-button[aria-expanded="true"]{border-color:#555;background:#202020;color:#eee}
+.usage-indicator-button .usage-ring{position:absolute;inset:2px;width:23px;height:23px;transform:rotate(-90deg);overflow:visible}
+.usage-ring-track,.usage-ring-value{fill:none;stroke-width:3}
+.usage-ring-track{stroke:#353535}
+.usage-ring-value{stroke:#9fc6aa;stroke-linecap:round;transition:stroke-dasharray .2s ease}
+.usage-indicator-button>span{font-size:8px;line-height:1;z-index:1}
+.usage-indicator-button>svg:not(.usage-ring){z-index:1}
+.usage-panel{position:absolute;z-index:30;right:0;bottom:calc(100% + 10px);width:278px;max-height:min(70vh,460px);overflow:auto;padding:12px;border:1px solid #343434;border-radius:9px;background:#151515;box-shadow:0 12px 40px #0009;color:#bbb}
+.usage-panel header{display:flex;align-items:center;justify-content:space-between;padding-bottom:9px;border-bottom:1px solid #292929;color:#eee}
+.usage-panel header strong{font-size:12px;font-weight:550}
+.usage-panel header button{width:23px;height:23px;border:0;border-radius:4px;background:transparent;color:#888;font-size:19px;line-height:1}
+.usage-panel header button:hover{background:#252525;color:#eee}
+.usage-context{display:flex;flex-direction:column;gap:4px;padding:10px 0;border-bottom:1px solid #292929}
+.usage-context span,.usage-section h3{font-size:10px;color:#888;font-weight:500}
+.usage-context strong{font-size:12px;color:#ddd;font-weight:500}
+.usage-section{padding-top:10px}
+.usage-section h3{margin:0 0 7px;text-transform:uppercase;letter-spacing:.04em}
+.usage-section dl{display:grid;grid-template-columns:1fr auto;gap:5px 12px;margin:0;font-size:10px}
+.usage-section dd{margin:0;color:#ddd;font-variant-numeric:tabular-nums;text-align:right}
+.usage-section p{margin:8px 0 0;color:#777;font-size:9px;line-height:1.4}
+.usage-section+.usage-section{margin-top:10px;border-top:1px solid #292929}
+@media(max-width:420px){.usage-panel{right:-42px;width:min(278px,calc(100vw - 24px))}}
