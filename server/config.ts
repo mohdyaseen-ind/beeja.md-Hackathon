@@ -223,10 +223,6 @@ export function providerEnvironment(settings: ProviderSettings): NodeJS.ProcessE
     ...githubGitEnvironment(),
   };
   if (settings.apiKey) env[providerEnvKey(settings.provider)] = settings.apiKey;
-  if (providerIdFor(settings.provider) === "openai") {
-    if (settings.apiKey) env.OPENAI_API_KEY = settings.apiKey;
-    env.OPENAI_BASE_URL = settings.baseUrl.replace(/\/+$/, "");
-  }
   return env;
 }
 
@@ -315,20 +311,17 @@ export function makeConfigToml(settings: ProviderSettings, webSearchEnabled = tr
     "[sandbox_workspace_write]",
     "network_access = true",
     "",
-    ...(providerId === "openai" ? [] : [
-      `[model_providers.${providerId}]`,
-      `name = ${tomlString(settings.provider)}`,
-      `base_url = ${tomlString(settings.baseUrl.replace(/\/+$/, ""))}`,
-      ...(settings.apiKey ? [`env_key = ${tomlString(providerEnvKey(settings.provider))}`] : []),
-      `wire_api = ${tomlString(settings.wireApi)}`,
-      ""
-    ]),
+    `[model_providers.${providerId}]`,
+    `name = ${tomlString(settings.provider)}`,
+    `base_url = ${tomlString(settings.baseUrl.replace(/\/+$/, ""))}`,
+    ...(settings.apiKey ? [`env_key = ${tomlString(providerEnvKey(settings.provider))}`] : []),
+    `wire_api = ${tomlString(settings.wireApi)}`,
+    "",
   ].join("\n");
 }
 
 export function providerIdFor(provider: string): string {
   const lower = provider.toLowerCase();
-  if (["openai", "groq", "deepseek", "custom"].includes(lower)) return "openai";
   const normalized = lower.replace(/[^a-z0-9_-]/g, "_").replace(/^[^a-z]+/, "provider_");
   return `beeja_${normalized || "custom"}`;
 }

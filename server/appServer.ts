@@ -3,7 +3,8 @@ import { EventEmitter } from "node:events";
 import { createInterface } from "node:readline";
 import { writeFile, chmod } from "node:fs/promises";
 import { join } from "node:path";
-import { codexHome, getProjectPath, makeConfigToml, providerEnvironment, getProvider, getWebSearchSettings, type ProviderSettings } from "./config.js";
+import { codexHome, getProjectPath, makeConfigToml, providerEnvironment, providerIdFor, getProvider, getWebSearchSettings, type ProviderSettings } from "./config.js";
+import { isGroqEndpoint, startProviderCompat } from "./providerCompat.js";
 
 type RpcId = string | number;
 type RpcMessage = { id?: RpcId; method?: string; params?: any; result?: any; error?: { code?: number; message?: string; data?: unknown } };
@@ -18,6 +19,7 @@ export class AppServer extends EventEmitter {
   private activeTurns = new Map<string, string>();
   private searchReadyThreads = new Map<string, { native: boolean; beeja: boolean }>();
   private searchCache = new Map<string, any>();
+  private providerProxy: { close: () => Promise<void> } | null = null;
 
   async start(settings: ProviderSettings): Promise<void> {
     await this.stop();
@@ -26,7 +28,10 @@ export class AppServer extends EventEmitter {
     this.error = undefined;
     this.emit("status", this.status);
     const webSearch = await getWebSearchSettings();
-    await writeFile(join(codexHome, "config.toml"), makeConfigToml(settings, webSearch.enabled), { mode: 0o600 });
+    const proxy = await startProviderCompat(settings);
+    this.providerProxy = proxy;
+    const codexSettings = proxy ? { ...settings, baseUrl: proxy.baseUrl } : settings;
+    await writeFile(join(codexHome, "config.toml"), makeConfigToml(codexSettings, webSearch.enabled && !isGroqEndpoint(settings.baseUrl)), { mode: 0o600 });
     await chmod(join(codexHome, "config.toml"), 0o600);
     const env = providerEnvironment(settings);
     // Do not let Codex discover or reuse a ChatGPT session from the launching user's home.
@@ -80,6 +85,9 @@ export class AppServer extends EventEmitter {
     }
     this.pending.clear();
     this.activeTurns.clear();
+    const proxy = this.providerProxy;
+    this.providerProxy = null;
+    if (proxy) await proxy.close();
     if (!this.settings) this.status = "unconfigured";
     this.emit("status", this.status);
   }
@@ -108,7 +116,8 @@ export class AppServer extends EventEmitter {
   async createThread(projectPath?: string, model?: string): Promise<any> {
     if (!this.settings) throw new Error("Configure a provider before creating a thread.");
     const search = await getWebSearchSettings();
-    const beejaConfigured = search.enabled && (search.tavilyApiKey || await hasOllamaCloudSearch());
+    const groq = isGroqEndpoint(this.settings.baseUrl);
+    const beejaConfigured = !groq && search.enabled && (search.tavilyApiKey || await hasOllamaCloudSearch());
     
     // Dynamically build the beeja namespace tools based on what's enabled
     const dynamicToolsConfig = {
@@ -142,15 +151,15 @@ export class AppServer extends EventEmitter {
     const result = await this.request("thread/start", {
       cwd: projectPath || await getProjectPath(),
       model: model || this.settings.model,
-      modelProvider: providerId(this.settings.provider),
+      modelProvider: providerIdFor(this.settings.provider),
       historyMode: "legacy",
       approvalPolicy: "on-request",
       sandbox: "workspace-write",
-      dynamicTools: [dynamicToolsConfig],
+      dynamicTools: groq ? [] : [dynamicToolsConfig],
     });
     const threadId = result?.thread?.id || result?.threadId;
     if (typeof threadId === "string") this.searchReadyThreads.set(threadId, {
-      native: search.enabled,
+      native: search.enabled && !groq,
       beeja: Boolean(beejaConfigured),
     });
     return result;
@@ -159,17 +168,18 @@ export class AppServer extends EventEmitter {
   async getSearchStatus(threadId?: string): Promise<any> {
     const settings = await getWebSearchSettings();
     const provider = await getProvider();
+    const groq = Boolean(provider && isGroqEndpoint(provider.baseUrl));
     const ollama = Boolean(provider?.apiKey && isOllamaCloudProvider(provider));
-    const beejaConfigured = Boolean(settings.tavilyApiKey || ollama);
+    const beejaConfigured = !groq && Boolean(settings.tavilyApiKey || ollama);
     const thread = threadId ? this.searchReadyThreads.get(threadId) : undefined;
     return {
       enabled: settings.enabled,
       tavilyConfigured: Boolean(settings.tavilyApiKey),
       ollamaCloudConfigured: ollama,
       endpointUrl: settings.endpointUrl,
-      native: { configured: settings.enabled, availability: settings.enabled ? "unverified" : "disabled", threadReady: thread?.native ?? null, source: "Codex native search" },
-      beeja: { configured: beejaConfigured, threadReady: thread?.beeja ?? null, sources: [ ...(ollama ? ["Ollama Cloud"] : []), ...(settings.tavilyApiKey ? ["Tavily-compatible endpoint"] : []) ] },
-      status: !settings.enabled ? "disabled" : beejaConfigured ? "configured" : "unknown",
+      native: { configured: settings.enabled && !groq, availability: settings.enabled && !groq ? "unverified" : "disabled", threadReady: thread?.native ?? null, source: "Codex native search" },
+      beeja: { configured: beejaConfigured, threadReady: thread?.beeja ?? null, sources: groq ? [] : [ ...(ollama ? ["Ollama Cloud"] : []), ...(settings.tavilyApiKey ? ["Tavily-compatible endpoint"] : []) ] },
+      status: !settings.enabled || groq ? "disabled" : beejaConfigured ? "configured" : "unknown",
       threadId: threadId || null,
       newThreadRequired: true,
     };
@@ -284,6 +294,14 @@ export class AppServer extends EventEmitter {
     try {
       return await this.request("thread/read", { threadId, includeTurns: true });
     } catch (error) {
+      if (error instanceof Error && /thread (?:not loaded|not found)/i.test(error.message)) {
+        await this.request("thread/resume", {
+          threadId,
+          model: this.settings?.model,
+          modelProvider: this.settings ? providerIdFor(this.settings.provider) : undefined,
+        });
+        return this.request("thread/read", { threadId, includeTurns: true });
+      }
       if (error instanceof Error && error.message.includes("is not materialized yet")) {
         return { thread: { id: threadId, turns: [] } };
       }
@@ -309,7 +327,19 @@ export class AppServer extends EventEmitter {
   }
 
   async startTurn(threadId: string, text: string, options: { model?: string; effort?: string } = {}): Promise<any> {
-    const result = await this.request("turn/start", { threadId, input: [{ type: "text", text }], ...(options.model ? { model: options.model } : {}), ...(options.effort ? { effort: options.effort } : {}) });
+    const params = { threadId, input: [{ type: "text", text }], ...(options.model ? { model: options.model } : {}), ...(options.effort ? { effort: options.effort } : {}) };
+    let result: any;
+    try {
+      result = await this.request("turn/start", params);
+    } catch (error) {
+      if (!(error instanceof Error) || !/thread (?:not loaded|not found)/i.test(error.message)) throw error;
+      await this.request("thread/resume", {
+        threadId,
+        model: options.model || this.settings?.model,
+        modelProvider: this.settings ? providerIdFor(this.settings.provider) : undefined,
+      });
+      result = await this.request("turn/start", params);
+    }
     const turnId = result?.turn?.id || result?.turnId;
     if (turnId) this.activeTurns.set(threadId, turnId);
     return result;
@@ -398,8 +428,4 @@ async function hasOllamaCloudSearch(): Promise<boolean> {
 function isOllamaCloudProvider(provider: ProviderSettings): boolean {
   try { return new URL(provider.baseUrl).hostname === "ollama.com" || provider.provider.toLowerCase().includes("ollama cloud"); }
   catch { return false; }
-}
-
-function providerId(provider: string) {
-  return `beeja_${provider.toLowerCase().replace(/[^a-z0-9_-]/g, "_").replace(/^[^a-z]+/, "provider_") || "custom"}`;
 }

@@ -6,8 +6,10 @@ import { access, stat, readdir, lstat, readFile, realpath, writeFile, chmod, ren
 import { isAbsolute, resolve, relative, sep, basename, join } from "node:path";
 import { lookup } from "node:dns/promises";
 import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
 import { WebSocketServer, WebSocket } from "ws";
 import { AppServer } from "./appServer.js";
+import { discoverProviderModels, normalizeProviderUrl } from "./providerModels.js";
 import {
   ensureDataDir, codexHome, getProvider, getProjectPath, getProjects, addProject, saveProvider, saveProjectPath,
   toPublicProvider, readInstructionFile, writeInstructionFile, getWebSearchSettings, saveWebSearchSettings, githubGitEnvironment, type ProviderSettings,
@@ -188,29 +190,36 @@ app.get("/api/status", async (_req, res) => {
 });
 
 app.get("/api/provider", async (_req, res) => res.json(toPublicProvider(await getProvider())));
+app.post("/api/provider/models", route(async (req, res) => {
+  const provider = cleanText(req.body?.provider, "Provider", 64);
+  let baseUrl: string;
+  try { baseUrl = normalizeProviderUrl(cleanText(req.body?.baseUrl, "Base URL", 2048)); }
+  catch (error) { res.status(400).json({ error: messageOf(error) }); return; }
+  const previous = await getProvider();
+  // A saved credential belongs only to its original provider and endpoint.
+  const sameEndpoint = previous?.provider === provider && normalizeProviderUrl(previous.baseUrl) === baseUrl;
+  const apiKey = typeof req.body?.apiKey === "string" ? req.body.apiKey.trim() : sameEndpoint ? previous!.apiKey : "";
+  if (apiKey.length > 4096) { res.status(400).json({ error: "API key is too long." }); return; }
+  try { res.json({ models: await discoverProviderModels(provider, baseUrl, apiKey) }); }
+  catch (error) { res.status(502).json({ error: messageOf(error) }); }
+}));
 app.post("/api/provider", async (req, res, next) => {
   try {
     const input = req.body as Partial<ProviderSettings>;
     const provider = cleanText(input.provider, "Provider", 64);
-    const baseUrl = cleanText(input.baseUrl, "Base URL", 2048);
+    let baseUrl: string;
+    try { baseUrl = normalizeProviderUrl(cleanText(input.baseUrl, "Base URL", 2048)); }
+    catch (error) { return res.status(400).json({ error: messageOf(error) }); }
     const model = cleanText(input.model, "Model", 128);
     const previous = await getProvider();
     const apiKey = typeof input.apiKey === "string"
       ? input.apiKey.trim()
-      : previous?.provider === provider ? previous.apiKey : "";
+      : previous?.provider === provider && normalizeProviderUrl(previous.baseUrl) === baseUrl ? previous.apiKey : "";
     if (apiKey.length > 4096) return res.status(400).json({ error: "API key is too long." });
-    if (input.wireApi && input.wireApi !== "responses") {
-      return res.status(400).json({ error: "Codex custom providers currently require the Responses API (wire_api=responses). Chat Completions only endpoints are not supported." });
+    if (input.wireApi && !["responses", "openai", "chat_completions"].includes(input.wireApi)) {
+      return res.status(400).json({ error: "Unsupported provider API format." });
     }
-    let parsed: URL;
-    try { parsed = new URL(baseUrl); } catch { return res.status(400).json({ error: "Enter a valid provider base URL." }); }
-    if (!(["http:", "https:"].includes(parsed.protocol)) || parsed.username || parsed.password) {
-      return res.status(400).json({ error: "Provider URL must use HTTP or HTTPS and cannot contain embedded credentials." });
-    }
-    if (/\/(chat\/completions|responses)\/?$/i.test(parsed.pathname)) {
-      return res.status(400).json({ error: "Enter the provider base URL, not a /chat/completions or /responses endpoint. Codex appends the Responses API route itself." });
-    }
-    const settings: ProviderSettings = { provider, baseUrl: parsed.toString().replace(/\/$/, ""), model, apiKey, wireApi: "responses" };
+    const settings: ProviderSettings = { provider, baseUrl, model, apiKey, wireApi: "responses" };
     await saveProvider(settings);
     try {
       await appServer.start(settings);
@@ -540,9 +549,9 @@ app.post("/api/approvals/:id", route(async (req, res) => {
 }));
 
 // Serve built frontend when present; during development Vite proxies API and WS requests here.
-app.use(express.static(new URL("../web/dist", import.meta.url).pathname));
+app.use(express.static(fileURLToPath(new URL("../web/dist", import.meta.url))));
 app.get("*splat", (_req, res, next) => {
-  res.sendFile(new URL("../web/dist/index.html", import.meta.url).pathname, (error) => {
+  res.sendFile(fileURLToPath(new URL("../web/dist/index.html", import.meta.url)), (error) => {
     if (error) next();
   });
 });

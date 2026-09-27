@@ -238,7 +238,7 @@ export function FilesReviewPanel({ projectPath, threadId }: { projectPath: strin
       <div className="file-browser-head">
         <div className="file-browser-title"><strong>Project files</strong><button className="workspace-icon-button" onClick={() => void loadDirectory(currentPath)} aria-label="Refresh files"><RotateCw size={14}/></button></div>
         <div className="file-path" title={currentPath ? `${root}/${currentPath}` : root}><FolderOpen size={13}/><button onClick={() => void loadDirectory('')}>{projectPath.split(/[\\/]/).filter(Boolean).pop() || root}</button>{crumbs.map((crumb, index) => <span key={`${crumb}-${index}`}><ChevronRight size={12}/><button onClick={() => void loadDirectory(crumbs.slice(0, index + 1).join('/'))}>{crumb}</button></span>)}</div>
-        <label className="file-filter"><Search size={14}/><input aria-label="Filter project files" value={filterText} onChange={(event) => setFilterText(event.target.value)} placeholder="Filter files…"/>{filterText && <button onClick={() => setFilterText('')} aria-label="Clear file filter"><X size={13}/></button>}</label>
+        <label className="file-filter"><Search size={14}/><input autoComplete="off" aria-label="Filter project files" value={filterText} onChange={(event) => setFilterText(event.target.value)} placeholder="Filter files…"/>{filterText && <button onClick={() => setFilterText('')} aria-label="Clear file filter"><X size={13}/></button>}</label>
       </div>
       {fileError && <div className="workspace-error" role="alert">{fileError}<button onClick={() => void loadDirectory(currentPath)}>Retry</button></div>}
       <div className="file-browser-list" aria-label="Files in current folder" aria-busy={fileLoading}>
