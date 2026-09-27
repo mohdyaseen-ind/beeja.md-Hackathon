@@ -582,7 +582,8 @@ export default function App() {
   const saveProvider = async (event: React.FormEvent) => {
     event.preventDefault(); setSaving(true); setError('')
     try {
-      await request('/api/provider', { method: 'POST', body: JSON.stringify({ provider, baseUrl, model, wireApi: 'responses', ...(apiKey ? { apiKey } : {}) }) })
+      const wireApi = provider === 'ollama' ? 'responses' : 'openai';
+      await request('/api/provider', { method: 'POST', body: JSON.stringify({ provider, baseUrl, model, wireApi, ...(apiKey ? { apiKey } : {}) }) })
       setChatModel(model); setApiKey(''); await refresh()
     } catch (e) { setError((e as Error).message) } finally { setSaving(false) }
   }

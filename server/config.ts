@@ -77,7 +77,7 @@ export async function getProvider(): Promise<ProviderSettings | null> {
           baseUrl: process.env.AI_BASE_URL || "https://api.openai.com/v1",
           model: process.env.AI_MODEL || "gpt-4o",
           apiKey: process.env.AI_API_KEY,
-          wireApi: "responses"
+          wireApi: (process.env.AI_PROVIDER || "openai") === "ollama" ? "responses" : "openai"
         };
       }
       return null;
