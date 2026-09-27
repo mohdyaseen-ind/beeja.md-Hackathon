@@ -48,7 +48,7 @@ export function UsageIndicator({ latest, turns }: { latest?: UsageTurn; turns: U
   const threadUsage = latest?.totalUsage ?? cumulative
   return <div className="usage-indicator">
     <button className="usage-indicator-button" type="button" aria-label="Show chat usage" aria-expanded={open} title={percent === undefined ? 'Context usage unavailable' : `${percent}% context used`} onClick={() => setOpen((value) => !value)}>
-      <svg className="usage-ring" viewBox="0 0 36 36" aria-hidden="true"><circle className="usage-ring-track" cx="18" cy="18" r="15"/><circle className="usage-ring-value" cx="18" cy="18" r="15" style={{ strokeDasharray: `${percent ?? 0} 100` }}/></svg>
+      <svg className="usage-ring" viewBox="0 0 36 36" aria-hidden="true"><circle className="usage-ring-track" cx="18" cy="18" r="15"/><circle className="usage-ring-value" cx="18" cy="18" r="15" pathLength="100" style={{ strokeDasharray: `${percent ?? 0} 100` }}/></svg>
       {percent === undefined ? <Activity size={12}/> : <span>{percent}</span>}
     </button>
     {open && <section className="usage-panel" aria-label="Chat usage details">

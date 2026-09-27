@@ -8,7 +8,7 @@ setup:
 
 run:
 	@echo "Starting AI Harness..."
-	CODEX_BIN="./node_modules/.bin/codex" npm start
+	AI_API_KEY="$(AI_API_KEY)" CODEX_BIN="$(CURDIR)/node_modules/.bin/codex" npm start
 
 test:
 	@echo "Running tests..."
