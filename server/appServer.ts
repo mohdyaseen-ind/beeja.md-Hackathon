@@ -17,6 +17,7 @@ export class AppServer extends EventEmitter {
   private settings: ProviderSettings | null = null;
   private activeTurns = new Map<string, string>();
   private searchReadyThreads = new Map<string, { native: boolean; beeja: boolean }>();
+  private searchCache = new Map<string, any>();
 
   async start(settings: ProviderSettings): Promise<void> {
     await this.stop();
@@ -184,6 +185,10 @@ export class AppServer extends EventEmitter {
     const provider = await getProvider();
     const useOllama = Boolean(provider?.apiKey && isOllamaCloudProvider(provider));
     if (!settings.tavilyApiKey && !useOllama) throw new Error("Configure an Ollama Cloud provider or a Tavily-compatible search endpoint in settings first.");
+
+    const cacheKey = JSON.stringify({ query, useOllama, hasTavily: Boolean(settings.tavilyApiKey) });
+    if (this.searchCache.has(cacheKey)) return this.searchCache.get(cacheKey);
+
     const searches = await Promise.allSettled([
       useOllama ? fetch("https://ollama.com/api/web_search", {
         method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${provider!.apiKey}` },
@@ -199,7 +204,10 @@ export class AppServer extends EventEmitter {
     const results = succeeded.flatMap((result) => Array.isArray(result.value.results) ? result.value.results.slice(0, 5).map((item: any) => ({ title: item.title, url: item.url, content: item.content })) : []);
     const uniqueResults = [...new Map(results.filter((item) => item.url).map((item) => [item.url, item])).values()].slice(0, 8);
     const answers = succeeded.map((result) => result.value.answer).filter(Boolean);
-    return { success: true, contentItems: [{ type: "inputText", text: JSON.stringify({ answers, results: uniqueResults }) }] };
+    
+    const finalResult = { success: true, contentItems: [{ type: "inputText", text: JSON.stringify({ answers, results: uniqueResults }) }] };
+    this.searchCache.set(cacheKey, finalResult);
+    return finalResult;
   }
 
   async listThreads(): Promise<any> {

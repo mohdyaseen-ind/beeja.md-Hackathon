@@ -23,9 +23,19 @@ export interface WebSearchSettings { enabled: boolean; tavilyApiKey: string; end
 export async function getWebSearchSettings(): Promise<WebSearchSettings> {
   try {
     const parsed = JSON.parse(await readFile(searchFile, "utf8")) as Partial<WebSearchSettings>;
-    return { enabled: parsed.enabled !== false, tavilyApiKey: typeof parsed.tavilyApiKey === "string" ? parsed.tavilyApiKey : "", endpointUrl: typeof parsed.endpointUrl === "string" ? parsed.endpointUrl : "https://api.tavily.com/search" };
+    return { 
+      enabled: parsed.enabled !== false, 
+      tavilyApiKey: process.env.TAVILY_API_KEY || (typeof parsed.tavilyApiKey === "string" ? parsed.tavilyApiKey : ""), 
+      endpointUrl: typeof parsed.endpointUrl === "string" ? parsed.endpointUrl : "https://api.tavily.com/search" 
+    };
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { enabled: true, tavilyApiKey: "", endpointUrl: "https://api.tavily.com/search" };
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return { 
+        enabled: true, 
+        tavilyApiKey: process.env.TAVILY_API_KEY || "", 
+        endpointUrl: "https://api.tavily.com/search" 
+      };
+    }
     throw error;
   }
 }
@@ -255,13 +265,19 @@ export function makeConfigToml(settings: ProviderSettings, webSearchEnabled = tr
     `harness constraints > explicit user task > repo conventions > general best practices.`,
     `If conflict, stop and report.`,
     ``,
+    `Optimization Policies:`,
+    `•  SINGLE-AGENT MODE: Do not spawn sub-agents or delegate tasks. Perform all work yourself to conserve context.`,
+    `•  TOOL-OUTPUT VIRTUALIZATION: Never flood context with large outputs. Pipe large test/grep/cat outputs to temporary files and read only the first 50 lines.`,
+    `•  RETRIEVAL GOVERNOR: Always search the local codebase with rg before escalating to web search.`,
+    `•  DOOM-LOOP GUARD: If you execute the same command or encounter the same failure twice, STOP. Do not retry blindly. Switch approaches or report failure.`,
+    ``,
     `Editing:`,
     `•  ASCII unless task/file requires otherwise.`,
     `•  Inspect git status and relevant diffs before editing.`,
     `•  Preserve all existing user changes; never revert, overwrite, or delete work you did not make.`,
-    `•  Correctness first; then use the smallest correct diff.`,
+    `•  PONYTAIL POLICY: Correctness first, then the absolute smallest correct diff.`,
+    `•  TASK LOCK: Zero scope creep. Absolutely no speculative improvements, abstractions, refactors, or "while I'm here" work.`,
     `•  Do not leave a known issue partially fixed to reduce diff size.`,
-    `•  Avoid unrelated changes, refactors, formatting, or cleanup.`,
     `•  If unexpected non-repo changes appear, preserve them and work around them; report if unsafe.`,
     ``,
     `Git:`,
@@ -272,6 +288,7 @@ export function makeConfigToml(settings: ProviderSettings, webSearchEnabled = tr
     `•  Do not push unless explicitly instructed.`,
     ``,
     `Workflow:`,
+    `0. CAVEMAN POLICY: Minimize narration and status updates. Output only tool calls and the absolute bare minimum reasoning.`,
     `1. Understand task; extract acceptance criteria.`,
     `2. Explore relevant code with rg; identify root cause; inspect existing tests.`,
     `3. Plan if multi-file, architectural, or tradeoff-heavy; if plan tool unavailable, briefly state the plan.`,
@@ -279,6 +296,7 @@ export function makeConfigToml(settings: ProviderSettings, webSearchEnabled = tr
     `5. Validate relevant tests/build/lint. Note pre-existing failures separately. Never claim success unless actually verified.`,
     `6. Review final diff against acceptance criteria.`,
     `7. Commit only when appropriate.`,
+    `8. STOP GATE: Stop immediately when the task is solved. Do not ask for further work or search for edge cases.`,
     ``,
     `Final report:`,
     `•  Changed: files and why`,
