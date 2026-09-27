@@ -8,7 +8,7 @@ export interface ProviderSettings {
   baseUrl: string;
   model: string;
   apiKey: string;
-  wireApi: "responses";
+  wireApi: "responses" | "openai" | string;
 }
 
 const dataDir = process.env.BEEJA_DATA_DIR || join(homedir(), ".beeja-controller");
