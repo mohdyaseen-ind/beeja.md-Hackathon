@@ -8,7 +8,7 @@ export interface ProviderSettings {
   baseUrl: string;
   model: string;
   apiKey: string;
-  wireApi: "responses" | "openai" | string;
+  wireApi: "responses";
 }
 
 const dataDir = process.env.BEEJA_DATA_DIR || join(homedir(), ".beeja-controller");
@@ -77,7 +77,7 @@ export async function getProvider(): Promise<ProviderSettings | null> {
           baseUrl: process.env.AI_BASE_URL || "https://api.openai.com/v1",
           model: process.env.AI_MODEL || "gpt-4o",
           apiKey: process.env.AI_API_KEY,
-          wireApi: (process.env.AI_PROVIDER || "openai") === "ollama" ? "responses" : "openai"
+          wireApi: "responses"
         };
       }
       return null;
@@ -223,6 +223,10 @@ export function providerEnvironment(settings: ProviderSettings): NodeJS.ProcessE
     ...githubGitEnvironment(),
   };
   if (settings.apiKey) env[providerEnvKey(settings.provider)] = settings.apiKey;
+  if (providerIdFor(settings.provider) === "openai") {
+    if (settings.apiKey) env.OPENAI_API_KEY = settings.apiKey;
+    env.OPENAI_BASE_URL = settings.baseUrl.replace(/\/+$/, "");
+  }
   return env;
 }
 
@@ -311,17 +315,21 @@ export function makeConfigToml(settings: ProviderSettings, webSearchEnabled = tr
     "[sandbox_workspace_write]",
     "network_access = true",
     "",
-    `[model_providers.${providerId}]`,
-    `name = ${tomlString(settings.provider)}`,
-    `base_url = ${tomlString(settings.baseUrl.replace(/\/+$/, ""))}`,
-    ...(settings.apiKey ? [`env_key = ${tomlString(providerEnvKey(settings.provider))}`] : []),
-    `wire_api = ${tomlString(settings.wireApi)}`,
-    "",
+    ...(providerId === "openai" ? [] : [
+      `[model_providers.${providerId}]`,
+      `name = ${tomlString(settings.provider)}`,
+      `base_url = ${tomlString(settings.baseUrl.replace(/\/+$/, ""))}`,
+      ...(settings.apiKey ? [`env_key = ${tomlString(providerEnvKey(settings.provider))}`] : []),
+      `wire_api = ${tomlString(settings.wireApi)}`,
+      ""
+    ]),
   ].join("\n");
 }
 
 export function providerIdFor(provider: string): string {
-  const normalized = provider.toLowerCase().replace(/[^a-z0-9_-]/g, "_").replace(/^[^a-z]+/, "provider_");
+  const lower = provider.toLowerCase();
+  if (["openai", "groq", "deepseek", "custom"].includes(lower)) return "openai";
+  const normalized = lower.replace(/[^a-z0-9_-]/g, "_").replace(/^[^a-z]+/, "provider_");
   return `beeja_${normalized || "custom"}`;
 }
 
