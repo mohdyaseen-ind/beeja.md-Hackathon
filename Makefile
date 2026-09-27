@@ -8,7 +8,7 @@ setup:
 
 run:
 	@echo "Starting AI Harness..."
-	npm start
+	CODEX_BIN="./node_modules/.bin/codex" npm start
 
 test:
 	@echo "Running tests..."
