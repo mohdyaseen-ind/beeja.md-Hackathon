@@ -35,8 +35,9 @@ function sumUsage(turns: UsageTurn[], key: keyof UsageValues): number | undefine
 export function UsageIndicator({ latest, turns }: { latest?: UsageTurn; turns: UsageTurn[] }) {
   const [open, setOpen] = useState(false)
   const contextInput = latest?.lastCall?.inputTokens
-  const percent = typeof contextInput === 'number' && typeof latest?.contextWindowTokens === 'number' && latest.contextWindowTokens > 0
-    ? Math.min(100, Math.round(contextInput / latest.contextWindowTokens * 100)) : undefined
+  const contextWindowTokens = latest?.contextWindowTokens || 128000
+  const percent = typeof contextInput === 'number' && contextWindowTokens > 0
+    ? Math.min(100, Math.round(contextInput / contextWindowTokens * 100)) : undefined
   const cumulative = useMemo(() => ({
     inputTokens: sumUsage(turns, 'inputTokens'),
     cachedInputTokens: sumUsage(turns, 'cachedInputTokens'),
@@ -53,7 +54,7 @@ export function UsageIndicator({ latest, turns }: { latest?: UsageTurn; turns: U
     </button>
     {open && <section className="usage-panel" aria-label="Chat usage details">
       <header><strong>Chat usage</strong><button type="button" onClick={() => setOpen(false)} aria-label="Close usage panel">×</button></header>
-      <div className="usage-context"><span>Context used</span><strong>{display(contextInput)} / {display(latest?.contextWindowTokens)}</strong></div>
+      <div className="usage-context"><span>Context used</span><strong>{display(contextInput)} / {latest?.contextWindowTokens ? display(latest.contextWindowTokens) : '128,000 (est.)'}</strong></div>
       <div className="usage-section"><h3>Latest turn</h3><dl>
         <dt>Input</dt><dd>{display(latestUsage?.inputTokens)}</dd>
         <dt>Cached input</dt><dd>{display(latestUsage?.cachedInputTokens)}</dd>
